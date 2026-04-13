@@ -1,5 +1,5 @@
 /**
- * app.js — V5_0
+ * app.js — V5_1
  * Optimized: version update, timers in bottom nav, smoother UX
  */
 
@@ -12,7 +12,7 @@ window.AppState = {
   editingNoteId:   null,
   pendingFiles:    [],
   selectedColor:   '#6366f1',
-  appVersion:      'V5_0',
+  appVersion:      'V5_1',
   theme:           'light',
   batchDeleteMode: false,
   batchDeleteIds:  []
@@ -58,7 +58,7 @@ function toggleTheme() {
 async function registerServiceWorker() {
   if (!('serviceWorker' in navigator)) return;
   try {
-    const reg = await navigator.serviceWorker.register('/CloudSync-Timer-Notes/service-worker.js');
+    const reg = await navigator.serviceWorker.register('/CloudSync-Timer-Notes/service-worker.js', { scope: '/CloudSync-Timer-Notes/' });
     const checkW = r => { if (r.waiting) showUpdateBanner('新版本已就緒'); };
     checkW(reg);
     reg.addEventListener('updatefound', () => {
