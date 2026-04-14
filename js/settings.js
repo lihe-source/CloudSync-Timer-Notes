@@ -124,12 +124,23 @@ async function renderSettingsPage() {
       '</div>' +
     '</div>' +
 
+    '<!-- 檢查更新 -->' +
+    '<div class=\"settings-section\">' +
+      '<div class=\"settings-section-title\">🔄 應用程式更新</div>' +
+      '<div class=\"settings-row\" style=\"flex-direction:column;align-items:flex-start;gap:8px;\">' +
+        '<div style=\"font-size:12px;color:var(--text-muted);\">目前版本：' + ((window.AppState && AppState.appVersion) || 'V5_0') + '</div>' +
+        '<button id=\"btn-check-update\" class=\"btn btn-secondary\" style=\"width:100%;\" onclick=\"checkForUpdateManually()\">🔍 檢查更新</button>' +
+      '</div>' +
+    '</div>' +
+
     '<!-- 危險區域 -->' +
     '<div class="settings-section" style="border-color:rgba(220,38,38,0.2);">' +
       '<div class="settings-section-title" style="color:var(--danger);">⚠️ 危險操作</div>' +
       '<p style="font-size:12px;color:var(--text-muted);margin-bottom:12px;">清除所有記事和分類資料，此操作無法復原。</p>' +
       '<button class="btn btn-danger" onclick="clearAllData()" style="width:100%;">🗑 清除所有資料</button>' +
     '</div>';
+  // 若已偵測到新版本，立即更新按鈕狀態
+  if (typeof updateCheckBtn === 'function') updateCheckBtn();
 }
 
 async function applySharedFolderFromSettings() {

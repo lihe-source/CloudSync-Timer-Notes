@@ -1,5 +1,5 @@
 /**
- * app.js — V5_4
+ * app.js — V5_5
  * Optimized: version update, timers in bottom nav, smoother UX
  */
 
@@ -12,7 +12,7 @@ window.AppState = {
   editingNoteId:   null,
   pendingFiles:    [],
   selectedColor:   '#6366f1',
-  appVersion:      'V5_4',
+  appVersion:      'V5_5',
   theme:           'light',
   batchDeleteMode: false,
   batchDeleteIds:  []
@@ -59,12 +59,13 @@ async function registerServiceWorker() {
   if (!('serviceWorker' in navigator)) return;
   try {
     const reg = await navigator.serviceWorker.register('/CloudSync-Timer-Notes/service-worker.js', { scope: '/CloudSync-Timer-Notes/' });
-    const checkW = r => { if (r.waiting) showUpdateBanner('新版本已就緒'); };
+    const markUpdate = () => { AppState.updateAvailable = true; updateCheckBtn(); };
+    const checkW = r => { if (r.waiting) markUpdate(); };
     checkW(reg);
     reg.addEventListener('updatefound', () => {
       const sw = reg.installing;
       sw.addEventListener('statechange', () => {
-        if (sw.state === 'installed' && navigator.serviceWorker.controller) showUpdateBanner('新版本已就緒');
+        if (sw.state === 'installed' && navigator.serviceWorker.controller) markUpdate();
       });
     });
     let refreshing = false;
@@ -72,7 +73,7 @@ async function registerServiceWorker() {
       if (!refreshing) { refreshing = true; window.location.reload(); }
     });
     navigator.serviceWorker.addEventListener('message', e => {
-      if (e.data?.type === 'UPDATE_AVAILABLE') showUpdateBanner(e.data.version);
+      if (e.data?.type === 'UPDATE_AVAILABLE') { AppState.updateAvailable = true; updateCheckBtn(); }
       if (e.data?.type === 'NOTIFICATION_CLICKED') {
         switchView('notes');
         setTimeout(() => highlightNote(e.data.noteId), 300);
@@ -88,7 +89,39 @@ function applyUpdate() {
     else window.location.reload();
   });
 }
-function dismissUpdateBanner() { document.getElementById('update-banner')?.classList.remove('show'); }
+
+// 更新設定頁面的「檢查更新」按鈕狀態
+function updateCheckBtn() {
+  const btn = document.getElementById('btn-check-update');
+  if (!btn) return;
+  if (AppState.updateAvailable) {
+    btn.textContent = '🎉 有新版本，點此更新';
+    btn.classList.add('has-update');
+    btn.onclick = applyUpdate;
+  }
+}
+
+// 手動檢查更新（設定頁呼叫）
+async function checkForUpdateManually() {
+  const btn = document.getElementById('btn-check-update');
+  if (btn) { btn.disabled = true; btn.textContent = '檢查中…'; }
+  try {
+    const reg = await navigator.serviceWorker.getRegistration();
+    if (reg) await reg.update();
+    const r = await fetch('/CloudSync-Timer-Notes/version.json?t=' + Date.now());
+    const d = await r.json();
+    if (AppState.updateAvailable || (d.version && d.version !== AppState.appVersion)) {
+      AppState.updateAvailable = true;
+      if (btn) { btn.disabled = false; btn.textContent = '🎉 有新版本，點此更新'; btn.classList.add('has-update'); btn.onclick = applyUpdate; }
+    } else {
+      if (btn) { btn.disabled = false; btn.textContent = '✅ 已是最新版本'; btn.classList.remove('has-update'); }
+      setTimeout(() => { if (btn) { btn.textContent = '🔍 檢查更新'; btn.onclick = checkForUpdateManually; } }, 3000);
+    }
+  } catch(e) {
+    if (btn) { btn.disabled = false; btn.textContent = '❌ 檢查失敗，請重試'; }
+    setTimeout(() => { if (btn) { btn.textContent = '🔍 檢查更新'; btn.onclick = checkForUpdateManually; } }, 3000);
+  }
+}
 
 async function loadAppVersion() {
   try {
@@ -199,17 +232,6 @@ function checkNotificationBanner() {
   if (Notification.permission === 'default') document.getElementById('notification-banner')?.classList.remove('hidden');
 }
 
-// ══ Update Banner ══
-let _updateBannerTimer = null;
-function showUpdateBanner(label) {
-  const b = document.getElementById('update-banner');
-  if (!b) return;
-  const s = document.getElementById('update-banner-text');
-  if (s) s.textContent = '🎉 ' + label;
-  b.classList.add('show');
-  clearTimeout(_updateBannerTimer);
-  _updateBannerTimer = setTimeout(dismissUpdateBanner, 5000);
-}
 
 function highlightNote(noteId) {
   const c = document.querySelector('[data-note-id="' + noteId + '"]');
