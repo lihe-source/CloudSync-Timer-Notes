@@ -20,7 +20,7 @@ const DATA_FILE    = 'cstn_data.json';
 const FOLDER_MIME  = 'application/vnd.google-apps.folder';
 const JSON_MIME    = 'application/json';
 const SHARED_KEY   = 'cstn_shared_folder_id';
-const SYNC_MS      = 5000;
+const SYNC_MS      = 3000;  // Drive API 輪詢間隔（3秒）
 
 window.DataStore = {
   notes:          [],
@@ -29,11 +29,13 @@ window.DataStore = {
   driveFolderId:  null,
   saveTimer:      null,
   syncTimer:      null,
+  tickTimer:      null,  // 1秒 UI 倒數計時器
   isSharedMode:   false,
   lastModified:   null,
+  lastSyncTime:   null,  // 上次成功同步的時間戳
   currentUser:    null,
-  isSaving:       false,  // 防止重入
-  hasPendingSave: false   // 標記有待儲存的本地變更
+  isSaving:       false,
+  hasPendingSave: false
 };
 
 // ── 通用 Drive API 請求 ──
@@ -158,6 +160,7 @@ async function joinSharedFolder(folderId) {
   const fileId  = result.files?.[0]?.id || null;
 
   if (DataStore.syncTimer) clearInterval(DataStore.syncTimer);
+  if (DataStore.tickTimer) clearInterval(DataStore.tickTimer);
 
   localStorage.setItem(SHARED_KEY, id);
   localStorage.removeItem('cstn_file_id');
@@ -199,16 +202,42 @@ function updateShareUI() {
 }
 
 // ══════════════════════════════════════
-// 定期同步（5 秒）
+// 定期同步（3 秒 Drive 輪詢 + 1 秒 UI 倒數）
 // ══════════════════════════════════════
 function startSyncLoop() {
   if (DataStore.syncTimer) clearInterval(DataStore.syncTimer);
+  if (DataStore.tickTimer) clearInterval(DataStore.tickTimer);
+
+  // Drive API 輪詢：每 3 秒
   DataStore.syncTimer = setInterval(async () => {
-    if (DataStore.isSaving) return; // 儲存中不同步，避免衝突
+    if (DataStore.isSaving) return;
     try { await syncFromDrive(); }
     catch (e) { console.warn('[Sync]', e.message); }
   }, SYNC_MS);
-  console.log('[Drive] 同步啟動，間隔', SYNC_MS/1000, '秒');
+
+  // UI 倒數：每 1 秒更新「X 秒前同步」
+  DataStore.tickTimer = setInterval(() => {
+    if (DataStore.lastSyncTime && !DataStore.isSaving && !DataStore.hasPendingSave) {
+      const sec = Math.round((Date.now() - DataStore.lastSyncTime) / 1000);
+      const dot = document.getElementById('sync-dot');
+      if (dot && dot.className.includes('synced')) {
+        const label = document.getElementById('sync-text');
+        if (label) label.textContent = sec <= 1 ? '已同步' : `${sec}秒前同步`;
+      }
+    }
+  }, 1000);
+
+  // Page Visibility：切回前台立即同步
+  if (!DataStore._visibilityBound) {
+    DataStore._visibilityBound = true;
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible' && !DataStore.isSaving) {
+        syncFromDrive().catch(e => console.warn('[Visibility sync]', e.message));
+      }
+    });
+  }
+
+  console.log('[Drive] 同步啟動，輪詢', SYNC_MS/1000, '秒，UI 每秒更新');
 }
 
 // 需求2：手動立即同步
@@ -558,4 +587,5 @@ function updateSyncStatus(status, text) {
   const dot=document.getElementById('sync-dot'), label=document.getElementById('sync-text');
   if(dot)   dot.className='sync-dot '+status;
   if(label) label.textContent=text;
+  if(status === 'synced') DataStore.lastSyncTime = Date.now();
 }

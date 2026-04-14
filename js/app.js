@@ -1,5 +1,5 @@
 /**
- * app.js — V5_1
+ * app.js — V5_3
  * Optimized: version update, timers in bottom nav, smoother UX
  */
 
@@ -12,7 +12,7 @@ window.AppState = {
   editingNoteId:   null,
   pendingFiles:    [],
   selectedColor:   '#6366f1',
-  appVersion:      'V5_1',
+  appVersion:      'V5_3',
   theme:           'light',
   batchDeleteMode: false,
   batchDeleteIds:  []
@@ -200,12 +200,15 @@ function checkNotificationBanner() {
 }
 
 // ══ Update Banner ══
+let _updateBannerTimer = null;
 function showUpdateBanner(label) {
   const b = document.getElementById('update-banner');
   if (!b) return;
   const s = document.getElementById('update-banner-text');
   if (s) s.textContent = '🎉 ' + label;
   b.classList.add('show');
+  clearTimeout(_updateBannerTimer);
+  _updateBannerTimer = setTimeout(dismissUpdateBanner, 5000);
 }
 
 function highlightNote(noteId) {
