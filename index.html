@@ -92,7 +92,10 @@
         </div>
         <div id="share-mode-badge" style="display:none;">🔗 共用</div>
       </div>
-      <button class="topbar-sync-btn" id="btn-manual-sync" onclick="manualSync()">☁ 立即同步</button>
+      <div class="topbar-sync-group">
+        <button class="topbar-sync-btn" id="btn-refresh" onclick="refreshFromDrive()">↻ 重新整理</button>
+        <button class="topbar-sync-btn topbar-upload-btn" id="btn-upload" onclick="uploadToDrive()" disabled>↑ 立即同步</button>
+      </div>
     </div>
   </header>
 
